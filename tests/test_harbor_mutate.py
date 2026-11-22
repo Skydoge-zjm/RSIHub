@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from harbor.agents.installed.mini_swe_agent import MiniSweAgent
 from harbor.models.exec.config import ExecConfig
 from harbor.models.task.config import EnvironmentConfig, VerifierConfig
 from harbor.models.trial.result import ExceptionInfo
@@ -797,7 +798,7 @@ def test_file_task_mutate_configures_per_attempt_timeout_and_timeout_retry(
         "ApiUsageLimitError",
     }
     queue = TrialQueue(1, retry_config=job.retry)
-    assert queue._should_retry_exception("AgentTimeoutError")
+    assert queue._retry_config.is_retryable("AgentTimeoutError")
     assert queue._calculate_backoff_delay_sec(0) == 1
     assert observed["process_timeout_s"] == 13380.0
 
@@ -880,7 +881,10 @@ def test_agent_timeout_retry_loop_fits_full_lifecycle_budgets(
                 if self.attempt == 0
                 else None
             )
-            return SimpleNamespace(exception_info=exception_info)
+            return SimpleNamespace(
+                exception_info=exception_info,
+                recorded_exceptions=lambda: [exception_info] if exception_info else [],
+            )
 
     async def create_trial(_config):
         attempt = len(attempts)
@@ -908,7 +912,7 @@ def test_agent_timeout_retry_loop_fits_full_lifecycle_budgets(
     )
 
     assert EnvironmentConfig().build_timeout_sec == 600
-    assert Trial._AGENT_SETUP_TIMEOUT_SEC == 360
+    assert MiniSweAgent.DEFAULT_SETUP_TIMEOUT_SEC == 360
     assert VerifierConfig().timeout_sec == 600
     assert attempts == [0, 1]
     assert result.exception_info is None
