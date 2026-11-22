@@ -214,7 +214,7 @@ def test_host_memory_gate_defers_admission_until_headroom_returns(tmp_path, monk
     config = trial(tmp_path, "gated", 2, 4096)
     available = [1024, 1024, 8192]
     monkeypatch.setattr(
-        "evolve.integrations.harbor._resource_scheduler._host_memory_available_mb",
+        "evolve.integrations.harbor._resource_policy.host_memory_available_mb",
         lambda: available.pop(0) if available else 8192,
     )
 
