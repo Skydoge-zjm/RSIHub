@@ -22,6 +22,7 @@ class ProxyMode(StrEnum):
 
 class ModelEndpointRoute(StrEnum):
     BYPASS = "bypass"
+    INHERIT = "inherit"
 
 
 @dataclass(frozen=True)
@@ -246,7 +247,7 @@ def _proxy(value: object) -> ProxyRoutingConfig | None:
     try:
         route = ModelEndpointRoute(_string(raw, "model_endpoint", "evaluator.runtime.proxy"))
     except ValueError as error:
-        raise RuntimeConfigError("evaluator.runtime.proxy.model_endpoint must be bypass") from error
+        raise RuntimeConfigError("evaluator.runtime.proxy.model_endpoint must be bypass or inherit") from error
     return ProxyRoutingConfig(mode, route)
 
 

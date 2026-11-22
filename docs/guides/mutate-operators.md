@@ -134,7 +134,9 @@ Useful optional keys are:
 - `expose_gate_data`: expose full evaluator/archive/run history only when the sealed split is empty (defaults to `false`);
 - `editable_roots`: top-level repository trees eligible for transactional import (defaults to `[target]`);
 - `model`: model identifier expected by that Harbor adapter;
+- `model_endpoint_route`: `inherit` preserves the host `NO_PROXY`; the default `bypass` adds the model host to it;
 - `agent_kwargs`: mapping converted to repeated Harbor `--agent-kwarg key=value` flags;
+- Installed MiniSWE accepts `environment_build_timeout_multiplier`, `agent_setup_timeout_multiplier`, and `verifier_timeout_multiplier`; its Harbor job and outer retry budget both use these values.
 - `agent_env`: mapping converted to repeated Harbor `--agent-env KEY=VALUE` flags;
 - `environment`, `image`, `jobs_dir`, `max_retries`, and `timeout_s`.
 

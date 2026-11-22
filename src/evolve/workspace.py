@@ -218,6 +218,7 @@ def _write_files(
         str(execution_runtime.get("backend", "docker")) if isinstance(execution_runtime, dict) else "docker"
     )
     partial_floor = float(evaluator.get("partial_floor", 0.9))
+    build_timeout_multiplier = float(evaluator.get("environment_build_timeout_multiplier", 1))
     setup_timeout_multiplier = float(evaluator.get("agent_setup_timeout_multiplier", 1))
     agent_timeout_multiplier = float(evaluator.get("agent_timeout_multiplier", 1))
     verifier_timeout_multiplier = float(evaluator.get("verifier_timeout_multiplier", 1))
@@ -286,6 +287,7 @@ def _write_files(
             execution_backend=execution_backend,
             dataset_mode=str(evaluator.get("dataset_mode", "path")),
             task_file=str(evaluator["task_file"]) if "task_file" in evaluator else None,
+            build_timeout_multiplier=build_timeout_multiplier,
             setup_timeout_multiplier=setup_timeout_multiplier,
             agent_timeout_multiplier=agent_timeout_multiplier,
             verifier_timeout_multiplier=verifier_timeout_multiplier,
@@ -761,6 +763,7 @@ def _eval_env(
     execution_backend: str | None = None,
     dataset_mode: str = "path",
     task_file: str | None = None,
+    build_timeout_multiplier: float = 1,
     setup_timeout_multiplier: float = 1,
     agent_timeout_multiplier: float = 1,
     verifier_timeout_multiplier: float = 1,
@@ -785,6 +788,8 @@ def _eval_env(
         text += f"EVOLVE_HARBOR_ENVIRONMENT={shlex.quote(environment)}\n"
     if execution_backend:
         text += f"EVOLVE_EXECUTION_BACKEND={shlex.quote(execution_backend)}\n"
+    if build_timeout_multiplier > 1:
+        text += f"EVOLVE_HARBOR_ENVIRONMENT_BUILD_TIMEOUT_MULTIPLIER={build_timeout_multiplier}\n"
     if setup_timeout_multiplier > 1:
         text += f"EVOLVE_HARBOR_AGENT_SETUP_TIMEOUT_MULTIPLIER={setup_timeout_multiplier}\n"
     if agent_timeout_multiplier > 1:

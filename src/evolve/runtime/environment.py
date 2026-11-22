@@ -14,6 +14,7 @@ from .auth import (
     resolve_authentication,
 )
 from .config import (
+    ModelEndpointRoute,
     ProxyMode,
     ResolvedRuntimeV1,
     RuntimeConfigError,
@@ -144,7 +145,7 @@ def resolve_runtime_environment(
         "proxy": {
             "active": proxy_active,
             "mode": proxy_mode,
-            "model_endpoint": "bypass",
+            "model_endpoint": runtime.config.proxy.model_endpoint.value if runtime.config.proxy else "bypass",
         },
         "forwarded_names_by_role": {role.value: sorted(role_values[role]) for role in RuntimeRole},
     }
@@ -276,9 +277,10 @@ def _add_configured_proxies(
         return False, mode
     bypass = _proxy_alias_value(source, _PROXY_ALIASES[-1]) or ""
     entries = [entry.strip() for entry in bypass.split(",") if entry.strip()]
-    model_host = model_endpoint_hostname(source.get("OPENAI_BASE_URL"))
-    if model_host not in {entry.lstrip(".").lower() for entry in entries}:
-        entries.append(model_host)
+    if configured is None or configured.model_endpoint is ModelEndpointRoute.BYPASS:
+        model_host = model_endpoint_hostname(source.get("OPENAI_BASE_URL"))
+        if model_host not in {entry.lstrip(".").lower() for entry in entries}:
+            entries.append(model_host)
     values[_PROXY_ALIASES[-1]] = ",".join(dict.fromkeys(entries))
     for aliases, value in values.items():
         for name in aliases:

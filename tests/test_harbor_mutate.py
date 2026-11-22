@@ -1678,3 +1678,46 @@ def test_agent_output_prefers_preserved_model_response_over_post_submit_message(
     )
 
     assert _harbor_runner_module()._agent_output(tmp_path / "trial") == "analysis and required manifest"
+
+
+def test_expanded_phase_timeouts_reach_native_job_and_outer_retry_deadline(tmp_path: Path) -> None:
+    runner = _harbor_runner_module()
+    source = tmp_path / "task"
+    source.mkdir()
+    (source / "payload.txt").write_text("payload")
+    prompt = tmp_path / "stage" / "prompt.md"
+    prompt.parent.mkdir()
+    prompt.write_text("bounded configuration test")
+    config = {
+        "runner": "harbor",
+        "agent": INSTALLED_AGENT,
+        "max_retries": 1,
+        "environment_build_timeout_multiplier": 6,
+        "agent_setup_timeout_multiplier": 10,
+        "verifier_timeout_multiplier": 3,
+    }
+    command = runner._installed_miniswe_config_command(
+        ["harbor"],
+        source,
+        prompt,
+        tmp_path / "jobs",
+        tmp_path / "tasks",
+        "phase-timeouts",
+        config,
+        artifact=None,
+        agent_timeout_s=28800,
+    )
+    from harbor.compile.compiler import Compiler
+    from harbor.models.task.config import TaskConfig
+
+    exec_config = ExecConfig.model_validate_json(Path(command[-1]).read_text())
+    job = exec_config.map.job
+    assert job.agents[0].override_setup_timeout_sec == 3600
+    assert job.verifier.override_timeout_sec == 1800
+    task = Compiler(exec_config.map.compile).compile()[0]
+    assert TaskConfig.model_validate_toml((task / "task.toml").read_text()).environment.build_timeout_sec == 3600
+    assert (task / "environment" / "task" / "payload.txt").read_text() == "payload"
+    assert job.agents[0].override_timeout_sec == 28800
+    required_process = 600 + 2 * (600 * 6 + 360 * 10 + 28800 + 600 * 3 + 600 + 600) + 60
+    assert runner._mutate_process_timeout_s(config, 28800) == required_process
+    assert _operator_deadline_s("mutate", config, 28800) == 600 + required_process + 600 + 60

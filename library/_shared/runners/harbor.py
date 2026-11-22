@@ -26,6 +26,9 @@ from evolve.git import git, head_commit, working_tree_changed_paths
 from evolve.host_runtime import uv_run
 from evolve.integrations.harbor._agent_roles import is_installed_miniswe_agent, uses_miniswe_submission
 from evolve.mutate_budget import (
+    HARBOR_AGENT_SETUP_S,
+    HARBOR_ENVIRONMENT_START_S,
+    HARBOR_VERIFIER_S,
     harbor_mutate_budget,
     uses_harbor_per_attempt_timeout,
 )
@@ -671,7 +674,7 @@ def _mutate_process_timeout_s(config: dict[str, Any], timeout_s: float) -> float
     if not uses_harbor_per_attempt_timeout(config):
         return None
     max_retries = _nonnegative_int(config.get("max_retries"), 0)
-    return harbor_mutate_budget(timeout_s, max_retries).harbor_process_s
+    return harbor_mutate_budget(timeout_s, max_retries, config=config).harbor_process_s
 
 
 def _append_agent_env(command: list[str], config: dict[str, Any]) -> None:
@@ -722,7 +725,7 @@ def _agent_env(config: dict[str, Any]) -> dict[str, str]:
         hostname = urlsplit(base_url).hostname
         if not hostname:
             raise ValueError("configured model base URL has no hostname")
-        if hostname not in bypass_entries:
+        if config.get("model_endpoint_route", "bypass") == "bypass" and hostname not in bypass_entries:
             bypass_entries.append(hostname)
     if bypass_entries:
         bypass = ",".join(bypass_entries)
@@ -804,6 +807,26 @@ def _installed_miniswe_config_command(
         "environment": environment,
         "agents": [agent],
     }
+    if "agent_setup_timeout_multiplier" in config:
+        agent["override_setup_timeout_sec"] = HARBOR_AGENT_SETUP_S * float(config["agent_setup_timeout_multiplier"])
+    if "verifier_timeout_multiplier" in config:
+        job_config["verifier"] = {
+            "override_timeout_sec": HARBOR_VERIFIER_S * float(config["verifier_timeout_multiplier"])
+        }
+    if "environment_build_timeout_multiplier" in config:
+        template = prompt_path.parent / "compile-task-template"
+        template.mkdir(exist_ok=True)
+        build_timeout = HARBOR_ENVIRONMENT_START_S * float(config["environment_build_timeout_multiplier"])
+        (template / "task.toml").write_text(f"[environment]\nbuild_timeout_sec = {build_timeout}\n")
+        environment_source = prompt_path.parent / "compile-environment"
+        if source.resolve() == environment_source.resolve() or source.resolve() in environment_source.resolve().parents:
+            raise ValueError("compile environment staging must stay outside its input source")
+        _copy_tree(source, environment_source / source.name)
+        compile_environment.pop("paths")
+        compile_environment.update(path=str(environment_source.resolve()))
+        compile_environment.setdefault("docker_image", "ubuntu:latest")
+        compile_environment.setdefault("workdir", workdir)
+        compile_config["task_template"] = str(template.resolve())
     exec_config = {"map": {"compile": compile_config, "job": job_config}}
     config_path = prompt_path.parent / "exec-config.json"
     _write_json(config_path, exec_config)

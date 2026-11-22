@@ -1,3 +1,5 @@
+import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -205,3 +207,42 @@ def test_init_writes_recipe_harbor_agent_to_eval_env(tmp_path: Path) -> None:
     assert "CheckoutTargetAgent" not in env
     assert (workspace / "evaluator" / "agent.env").read_text() == ""
     assert not (workspace / "evaluator" / "checkout_agent.py").exists()
+
+
+def test_environment_build_timeout_is_frozen_with_other_phase_limits() -> None:
+    env = _eval_env(
+        "exp",
+        "tasks",
+        1,
+        1,
+        1,
+        1.0,
+        "custom:Agent",
+        build_timeout_multiplier=12,
+        setup_timeout_multiplier=20,
+        agent_timeout_multiplier=12,
+        verifier_timeout_multiplier=12,
+    )
+    values = dict(line.split("=", 1) for line in env.splitlines())
+    assert values["EVOLVE_HARBOR_ENVIRONMENT_BUILD_TIMEOUT_MULTIPLIER"] == "12"
+    assert values["EVOLVE_HARBOR_AGENT_SETUP_TIMEOUT_MULTIPLIER"] == "20"
+    assert values["EVOLVE_HARBOR_AGENT_TIMEOUT_MULTIPLIER"] == "12"
+    assert values["EVOLVE_HARBOR_VERIFIER_TIMEOUT_MULTIPLIER"] == "12"
+
+
+@pytest.mark.parametrize(
+    ("route", "expected"),
+    [("inherit", "localhost"), ("bypass", "localhost,model.example"), (None, "localhost,model.example")],
+)
+def test_harbor_engine_proxy_projection_respects_frozen_runtime(tmp_path, monkeypatch, capsys, route, expected) -> None:
+    engine = (Path(__file__).resolve().parents[1] / "scaffolds/evaluators/harbor/engine.sh").read_text()
+    projection = engine.split("proxy_bypass=$(\n", 1)[1].split("<<'PY'\n", 1)[1].split("\nPY\n)", 1)[0]
+    monkeypatch.chdir(tmp_path)
+    if route is not None:
+        (tmp_path / "evaluator").mkdir()
+        (tmp_path / "evaluator/runtime.json").write_text(json.dumps({"proxy": {"model_endpoint": route}}))
+    monkeypatch.setattr(sys, "argv", ["proxy", "https://model.example/v1", "", "localhost", ""])
+
+    exec(compile(projection, "harbor-engine-proxy", "exec"), {})
+
+    assert capsys.readouterr().out.strip() == expected

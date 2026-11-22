@@ -84,3 +84,22 @@ def test_resolved_runtime_loader_rejects_tampering() -> None:
     payload["digest"] = "0" * 64
     with pytest.raises(RuntimeConfigError, match="digest"):
         load_resolved_runtime(payload)
+
+
+def test_runtime_can_explicitly_inherit_host_model_proxy_routing() -> None:
+    runtime = resolve_runtime(
+        {"proxy": {"mode": "required", "model_endpoint": "inherit"}},
+        engine="harbor",
+        environment={"OPENAI_BASE_URL": "https://model.example/v1"},
+    )
+
+    assert runtime.config.proxy == ProxyRoutingConfig(ProxyMode.REQUIRED, ModelEndpointRoute.INHERIT)
+    assert load_resolved_runtime(runtime.to_dict()) == runtime
+    assert (
+        runtime.digest
+        != resolve_runtime(
+            {"proxy": {"mode": "required", "model_endpoint": "bypass"}},
+            engine="harbor",
+            environment={"OPENAI_BASE_URL": "https://model.example/v1"},
+        ).digest
+    )

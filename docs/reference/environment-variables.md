@@ -164,6 +164,7 @@ replace the task's timeout:
 
 | Variable | Purpose |
 | --- | --- |
+| `EVOLVE_HARBOR_ENVIRONMENT_BUILD_TIMEOUT_MULTIPLIER` | environment build/start headroom |
 | `EVOLVE_HARBOR_AGENT_SETUP_TIMEOUT_MULTIPLIER` | agent installation/setup headroom |
 | `EVOLVE_HARBOR_AGENT_TIMEOUT_MULTIPLIER` | target-agent execution headroom |
 | `EVOLVE_HARBOR_VERIFIER_TIMEOUT_MULTIPLIER` | verifier execution headroom |
@@ -192,6 +193,23 @@ cause HTTP clients to fail before a model request is made.
 
 Do not copy another machine's proxy or `NO_PROXY` values. They are
 host/network-specific.
+
+The default runtime adds the model endpoint to `NO_PROXY`. If the endpoint
+must use the same proxy routing as the host, opt in before initializing a new
+workspace:
+
+```yaml
+evaluator:
+  runtime:
+    proxy:
+      mode: required
+      model_endpoint: inherit
+```
+
+`inherit` preserves the host's `NO_PROXY` entries. `bypass` keeps the default
+model-endpoint exemption. Both choices are bound to the frozen runtime identity;
+changing one requires a new workspace. Loopback proxies also require a container
+network configuration that can reach the host's proxy listener.
 
 ## Variables managed by RSIHub
 

@@ -82,6 +82,10 @@ class HarborRollout(RolloutOperator):
             budget_tasks = len(split_task_names)
         default_concurrent = _positive_int(eval_env.get("EVOLVE_HARBOR_N_CONCURRENT"), budget_tasks)
         n_concurrent = min(budget_tasks, _positive_int(ctx.config.get("n_concurrent"), default_concurrent))
+        build_timeout_multiplier = _float_value(
+            ctx.config.get("environment_build_timeout_multiplier"),
+            _float_value(eval_env.get("EVOLVE_HARBOR_ENVIRONMENT_BUILD_TIMEOUT_MULTIPLIER"), 1),
+        )
         setup_timeout_multiplier = _float_value(
             ctx.config.get("agent_setup_timeout_multiplier"),
             _float_value(eval_env.get("EVOLVE_HARBOR_AGENT_SETUP_TIMEOUT_MULTIPLIER"), 1),
@@ -112,6 +116,8 @@ class HarborRollout(RolloutOperator):
             f"EVOLVE_CANDIDATE_SOURCE={(checkout / 'target').resolve()}",
             "--n-attempts",
             "1",
+            "--environment-build-timeout-multiplier",
+            str(max(build_timeout_multiplier, 1)),
             "--agent-setup-timeout-multiplier",
             str(max(setup_timeout_multiplier, 1)),
             "--agent-timeout-multiplier",

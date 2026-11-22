@@ -409,6 +409,10 @@ def _debugger_runner_prompt(job: TaskAnalysisJob, config: dict[str, Any]) -> str
 
 
 _DEBUGGER_RUNNER_KEYS = (
+    "environment_build_timeout_multiplier",
+    "agent_setup_timeout_multiplier",
+    "verifier_timeout_multiplier",
+    "model_endpoint_route",
     "runner",
     "agent",
     "model",

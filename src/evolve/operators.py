@@ -60,7 +60,7 @@ def _operator_deadline_s(name: str, config_block: dict[str, Any], timeout_s: flo
         max_retries = max(0, int(config_block.get("max_retries", 0)))
     except (TypeError, ValueError):
         max_retries = 0
-    return harbor_mutate_budget(timeout_s, max_retries).operator_s
+    return harbor_mutate_budget(timeout_s, max_retries, config=config_block).operator_s
 
 
 def run_operator(

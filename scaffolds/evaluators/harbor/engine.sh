@@ -366,6 +366,9 @@ elif [ -n "${OPENAI_MODEL:-}" ]; then
   set -- "$@" --model "openai/$OPENAI_MODEL"
   set -- "$@" --ve "EVOLVE_HARBOR_MODEL=openai/$OPENAI_MODEL"
 fi
+if [ -n "${EVOLVE_HARBOR_ENVIRONMENT_BUILD_TIMEOUT_MULTIPLIER:-}" ]; then
+  set -- "$@" --environment-build-timeout-multiplier "$EVOLVE_HARBOR_ENVIRONMENT_BUILD_TIMEOUT_MULTIPLIER"
+fi
 if [ -n "${EVOLVE_HARBOR_AGENT_SETUP_TIMEOUT_MULTIPLIER:-}" ]; then
   set -- "$@" --agent-setup-timeout-multiplier "$EVOLVE_HARBOR_AGENT_SETUP_TIMEOUT_MULTIPLIER"
 fi
@@ -385,9 +388,14 @@ model_base=${agent_model_base:-${OPENAI_BASE_URL:-${OPENAI_API_BASE:-}}}
 proxy_no_configured=${EVOLVE_HARBOR_NO_PROXY:-${agent_proxy_no:-}}
 proxy_bypass=$(
   "$EVOLVE_FRAMEWORK_PYTHON" - "$model_base" "$proxy_no_configured" "${no_proxy-}" "${NO_PROXY-}" <<'PY'
+import json
 import sys
+from pathlib import Path
 from urllib.parse import urlsplit
 
+runtime_path = Path("evaluator/runtime.json")
+runtime = json.loads(runtime_path.read_text()) if runtime_path.is_file() else {}
+route = runtime.get("proxy", {}).get("model_endpoint", "bypass")
 base_url, override, *configured = sys.argv[1:]
 entries = []
 for value in ([override] if override else configured):
@@ -399,7 +407,7 @@ if base_url:
     hostname = urlsplit(base_url).hostname
     if not hostname:
         raise SystemExit("configured model base URL has no hostname")
-    if hostname not in entries:
+    if route != "inherit" and hostname not in entries:
         entries.append(hostname)
 print(",".join(entries))
 PY

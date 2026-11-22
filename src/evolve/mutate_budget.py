@@ -37,7 +37,7 @@ from .integrations.harbor._agent_roles import INSTALLED_MINISWE_AGENT, is_instal
 
 HARBOR_FILE_TASK_AGENT = INSTALLED_MINISWE_AGENT
 
-# Pinned Harbor 0.18 lifecycle defaults.
+# Pinned Harbor 0.18 defaults; explicit job multipliers also scale the outer budget.
 HARBOR_ENVIRONMENT_START_S = 600.0
 HARBOR_AGENT_SETUP_S = 360.0
 HARBOR_VERIFIER_S = 600.0
@@ -72,6 +72,9 @@ class HarborMutateBudget:
 
     agent_timeout_s: float
     max_retries: int
+    environment_build_timeout_multiplier: float = 1.0
+    agent_setup_timeout_multiplier: float = 1.0
+    verifier_timeout_multiplier: float = 1.0
 
     @property
     def attempts(self) -> int:
@@ -80,10 +83,10 @@ class HarborMutateBudget:
     @property
     def per_trial_s(self) -> float:
         return (
-            HARBOR_ENVIRONMENT_START_S
-            + HARBOR_AGENT_SETUP_S
+            HARBOR_ENVIRONMENT_START_S * self.environment_build_timeout_multiplier
+            + HARBOR_AGENT_SETUP_S * self.agent_setup_timeout_multiplier
             + self.agent_timeout_s
-            + HARBOR_VERIFIER_S
+            + HARBOR_VERIFIER_S * self.verifier_timeout_multiplier
             + HARBOR_ARTIFACT_LOG_COLLECTION_S
             + HARBOR_TEARDOWN_FINALIZATION_S
         )
@@ -104,10 +107,21 @@ class HarborMutateBudget:
 def harbor_mutate_budget(
     agent_timeout_s: float,
     max_retries: int,
+    *,
+    config: Mapping[str, object] | None = None,
 ) -> HarborMutateBudget:
     """Return a normalized lifecycle budget."""
+
+    def multiplier(key: str) -> float:
+        value = (config or {}).get(key, 1.0)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+            raise ValueError(f"{key} must be positive")
+        return float(value)
 
     return HarborMutateBudget(
         agent_timeout_s=max(0.0, float(agent_timeout_s)),
         max_retries=max(0, int(max_retries)),
+        environment_build_timeout_multiplier=multiplier("environment_build_timeout_multiplier"),
+        agent_setup_timeout_multiplier=multiplier("agent_setup_timeout_multiplier"),
+        verifier_timeout_multiplier=multiplier("verifier_timeout_multiplier"),
     )

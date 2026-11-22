@@ -242,3 +242,44 @@ def test_legacy_proxy_plan_passes_standard_bypass_unchanged() -> None:
     expected = ".upper.example,objects.githubusercontent.com,astral.sh"
     assert process["EVOLVE_RUNTIME_AGENT_NO_PROXY"] == expected
     assert process["EVOLVE_RUNTIME_VERIFIER_NO_PROXY"] == expected
+
+
+@pytest.mark.parametrize("bypass", ["localhost,127.0.0.1", "localhost,model.example"])
+def test_explicit_inheritance_preserves_host_no_proxy_and_role_templates(bypass: str) -> None:
+    environment = complete_environment()
+    environment["NO_PROXY"] = bypass
+    runtime = resolve_runtime(
+        {"proxy": {"mode": "required", "model_endpoint": "inherit"}},
+        engine="harbor",
+        environment=environment,
+    )
+
+    plan = resolve_runtime_environment(runtime, environment, mutate_kind="codex")
+
+    for role in ("AGENT", "VERIFIER", "MUTATE"):
+        assert plan.process_env()[f"EVOLVE_RUNTIME_{role}_NO_PROXY"] == bypass
+        assert plan.process_env()[f"EVOLVE_RUNTIME_{role}_HTTPS_PROXY"] == environment["HTTPS_PROXY"]
+    assert dict(plan.evidence)["proxy"] == {
+        "active": True,
+        "mode": "required",
+        "model_endpoint": "inherit",
+    }
+    serialized = json.dumps(plan.persisted_payload())
+    assert "password" not in serialized
+    assert "sensitive-key-value" not in serialized
+
+
+def test_meta_runner_inherits_proxy_route_for_mutation_and_debugger(monkeypatch) -> None:
+    from library._shared.runners.harbor import _agent_env
+
+    for name in ("NO_PROXY", "no_proxy", "EVOLVE_HARBOR_NO_PROXY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("NO_PROXY", "localhost,127.0.0.1")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://model.example/v1")
+    config = {"agent": "mini-swe-agent", "model_endpoint_route": "inherit"}
+
+    inherited = _agent_env(config)
+    default = _agent_env({"agent": "mini-swe-agent"})
+
+    assert inherited["NO_PROXY"] == inherited["no_proxy"] == "localhost,127.0.0.1"
+    assert default["NO_PROXY"] == "localhost,127.0.0.1,model.example"

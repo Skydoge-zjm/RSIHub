@@ -17,6 +17,7 @@ from evolve.frozen.config import (
 
 def _validate_optional_values(config: dict[str, object]) -> None:
     for key in (
+        "environment_build_timeout_multiplier",
         "agent_setup_timeout_multiplier",
         "agent_timeout_multiplier",
         "verifier_timeout_multiplier",
@@ -35,6 +36,7 @@ CONFIG = Config(
             choices=("head", "generation_shuffle"),
         ),
         "n_concurrent": integer(minimum=1),
+        "environment_build_timeout_multiplier": number(),
         "agent_setup_timeout_multiplier": number(),
         "agent_timeout_multiplier": number(),
         "verifier_timeout_multiplier": number(),

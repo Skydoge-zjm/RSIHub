@@ -1,9 +1,16 @@
 """Shared declarative config fragments for mutate operators."""
 
-from evolve.frozen.config import Config, array, boolean, integer, object, string
+from evolve.frozen.config import Config, array, boolean, integer, number, object, string
 
 RUNNER_CONFIG = Config(
     {
+        "environment_build_timeout_multiplier": number(minimum=0.000001),
+        "agent_setup_timeout_multiplier": number(minimum=0.000001),
+        "verifier_timeout_multiplier": number(minimum=0.000001),
+        "model_endpoint_route": string(
+            choices=("bypass", "inherit"),
+            description="Bypass the model proxy or inherit the host NO_PROXY routing.",
+        ),
         "runner": string(
             default="local",
             choices=("local", "harbor"),
