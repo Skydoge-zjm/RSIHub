@@ -222,6 +222,15 @@ def _write_files(
     agent_timeout_multiplier = float(evaluator.get("agent_timeout_multiplier", 1))
     verifier_timeout_multiplier = float(evaluator.get("verifier_timeout_multiplier", 1))
     max_retries = int(evaluator.get("max_retries", 0))
+    resource_cpu_slots = _positive_optional_int(
+        evaluator.get("resource_cpu_slots"), "evaluator.resource_cpu_slots"
+    )
+    resource_memory_mb = _positive_optional_int(
+        evaluator.get("resource_memory_mb"), "evaluator.resource_memory_mb"
+    )
+    resource_policy = evaluator.get("resource_policy")
+    if resource_policy is not None and not isinstance(resource_policy, str):
+        raise ValueError("evaluator.resource_policy must be a string")
     task_scope = str(evaluator.get("task_scope", "partitioned"))
     split = evaluator.get("split")
     if task_scope == "full":
@@ -281,6 +290,9 @@ def _write_files(
             agent_timeout_multiplier=agent_timeout_multiplier,
             verifier_timeout_multiplier=verifier_timeout_multiplier,
             max_retries=max_retries,
+            resource_cpu_slots=resource_cpu_slots,
+            resource_memory_mb=resource_memory_mb,
+            resource_policy=resource_policy,
         ),
         "evaluator/agent.env": _agent_env(evaluator.get("agent_env")),
         "evaluator/verifier.env": _agent_env(evaluator.get("verifier_env")),
@@ -753,6 +765,9 @@ def _eval_env(
     agent_timeout_multiplier: float = 1,
     verifier_timeout_multiplier: float = 1,
     max_retries: int = 0,
+    resource_cpu_slots: int | None = None,
+    resource_memory_mb: int | None = None,
+    resource_policy: str | None = None,
 ) -> str:
     expected_trials = tasks_per_round * max(trials, 1)
     text = (
@@ -778,9 +793,23 @@ def _eval_env(
         text += f"EVOLVE_HARBOR_VERIFIER_TIMEOUT_MULTIPLIER={verifier_timeout_multiplier}\n"
     if max_retries > 0:
         text += f"EVOLVE_HARBOR_MAX_RETRIES={max_retries}\n"
+    if resource_cpu_slots is not None:
+        text += f"HARBOR_RESOURCE_CPU_SLOTS={resource_cpu_slots}\n"
+    if resource_memory_mb is not None:
+        text += f"HARBOR_RESOURCE_MEMORY_MB={resource_memory_mb}\n"
+    if resource_policy:
+        text += f"HARBOR_RESOURCE_POLICY={shlex.quote(resource_policy)}\n"
     if model:
         text += f"EVOLVE_HARBOR_MODEL={shlex.quote(model)}\n"
     return text + (f"EVOLVE_HARBOR_TASK_FILE={shlex.quote(task_file)}\n" if task_file else "")
+
+
+def _positive_optional_int(value: object, field: str) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{field} must be a positive integer")
+    return value
 
 
 def _eval_sh(engine: str, _dataset: str) -> str:

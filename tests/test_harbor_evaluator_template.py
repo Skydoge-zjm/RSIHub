@@ -44,7 +44,7 @@ def test_harbor_evaluator_uses_locked_workspace_runtime() -> None:
     text = _eval_sh("harbor", "fixture")
 
     assert "PYTHONPATH" not in text
-    assert text.count('--python "$EVOLVE_FRAMEWORK_PYTHON"') == 5
+    assert text.count('--python "$EVOLVE_FRAMEWORK_PYTHON"') == 6
     assert 'python "$PWD/.evolve/launch_splits.py"' in text
     assert 'harbor "$@"' in text
     assert '"$PWD/.evolve/launch_splits.py"' in text

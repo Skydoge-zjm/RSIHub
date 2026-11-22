@@ -412,6 +412,14 @@ for proxy_entry in \
   "no_proxy=$proxy_bypass" "NO_PROXY=$proxy_bypass"; do
   if [ -n "${proxy_entry#*=}" ]; then set -- "$@" --ae "$proxy_entry" --ve "$proxy_entry"; fi
 done
+if [ -n "${HARBOR_RESOURCE_CPU_SLOTS:-}" ] || [ -n "${HARBOR_RESOURCE_MEMORY_MB:-}" ]; then
+  if ! run_shared_uv run --project "$EVOLVE_WORKSPACE" --frozen \
+    --python "$EVOLVE_FRAMEWORK_PYTHON" python -m evolve.integrations.harbor._resource_scheduler \
+    > "$EVOLVE_RUN_DIR/resource-scheduler.log" 2>&1; then
+    printf 'infra_failed\n' > "$EVOLVE_RUN_DIR/status"
+    exit 3
+  fi
+fi
 set -- "$@" --job-name "$EVOLVE_ATTEMPT_ID" --jobs-dir "$jobs_dir" --n-attempts "${EVOLVE_HARBOR_ATTEMPTS:-1}" -n "${EVOLVE_HARBOR_N_CONCURRENT:-$EVOLVE_HARBOR_N}" -y -q
 if [ -n "${EVOLVE_CANDIDATE_SMOKE_MODE:-}" ]; then
   run_shared_uv run --project "$EVOLVE_WORKSPACE" --frozen \

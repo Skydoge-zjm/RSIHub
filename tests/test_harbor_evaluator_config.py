@@ -57,6 +57,14 @@ def test_harbor_engine_supports_optional_frozen_evaluator_runtime_without_changi
     assert "local execution runtime requires Harbor LocalEnvironment; refusing Docker fallback" in engine
 
 
+def test_harbor_engine_installs_weighted_resource_scheduler_before_run() -> None:
+    engine = (Path(__file__).resolve().parents[1] / "scaffolds" / "evaluators" / "harbor" / "engine.sh").read_text()
+
+    assert "evolve.integrations.harbor._resource_scheduler" in engine
+    assert "HARBOR_RESOURCE_CPU_SLOTS" in engine
+    assert "resource-scheduler.log" in engine
+
+
 def test_eval_env_freezes_agent_timeout_multiplier() -> None:
     env = _eval_env(
         "exp",
@@ -85,6 +93,25 @@ def test_eval_env_freezes_verifier_timeout_multiplier() -> None:
     )
 
     assert "EVOLVE_HARBOR_VERIFIER_TIMEOUT_MULTIPLIER=2\n" in env
+
+
+def test_eval_env_freezes_weighted_resource_scheduler() -> None:
+    env = _eval_env(
+        "exp",
+        "terminal-bench-4.1",
+        n_concurrent=30,
+        tasks_per_round=30,
+        trials=1,
+        partial_floor=1.0,
+        agent="custom:Agent",
+        resource_cpu_slots=22,
+        resource_memory_mb=30720,
+        resource_policy="greedy-largest-fitting",
+    )
+
+    assert "HARBOR_RESOURCE_CPU_SLOTS=22\n" in env
+    assert "HARBOR_RESOURCE_MEMORY_MB=30720\n" in env
+    assert "HARBOR_RESOURCE_POLICY=greedy-largest-fitting\n" in env
 
 
 def test_eval_env_omits_neutral_harbor_controls() -> None:

@@ -103,6 +103,7 @@ decision (and usually a demolition pass) instead of silent sprawl.
 | `integrations/__init__.py` | 10 | external runtime integration package boundary |
 | `integrations/harbor/_recovery.py` | 200 | explicit same-config Harbor recovery with evidence backup and durable attempt receipts |
 | `integrations/harbor/_runtime_plan.py` | 200 | shared Harbor mount/Compose input resolution and versioned plan receipts for training and evaluation |
+| `integrations/harbor/_resource_scheduler.py` | 250 | install the weighted task-resource admission scheduler into the pinned Harbor queue |
 | `integrations/harbor/__init__.py` | 10 | Harbor integration package boundary |
 | `integrations/harbor/local_auto_agent.py` | 275 | local CLI discovery and delegation to Harbor installed-agent adapters with required ATIF output |
 | `integrations/harbor/_agent_roles.py` | 50 | canonical MiniSWE role names and narrow compatibility aliases |
@@ -137,7 +138,7 @@ each workspace, immutable there because it sits outside the mutable surface
 | `frozen/interfaces.py` | 375 | operator ABCs, registry, result schemas, and strict operator payload validation |
 | `frozen/sdk.py` | 350 | Python operator entrypoint and file-contract IO; no library algorithm policy |
 
-Total `src/evolve/` budget: **27290 lines**. The budget admits the read-only experiment viewer,
+Total `src/evolve/` budget: **27540 lines**. The budget admits the read-only experiment viewer,
 the explicit content-backed
 evaluation-contract boundaries, the opt-in in-place Harbor runtime, and the redacted trace-analysis
 boundary between rollout and feedback assembly; if the mechanism wants to
