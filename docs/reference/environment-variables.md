@@ -176,15 +176,43 @@ are useful for launch profiles and diagnostics, but `operators.rollout` and
 `operators.validate` may set their own concurrency and timeout multipliers.
 Keep the two GEPA stages symmetric when changing execution headroom.
 
-A local Harbor evaluator recipe can set `resource_cpu_slots`, `resource_memory_mb`
-(in MiB), or both. The optional `resource_policy` is `greedy-largest-fitting`.
-Each trial reserves its peak declared resources across agent and verifier phases.
-Fractional CPU declarations round up to whole slots. Whenever a trial finishes,
-the queue admits the largest pending memory request that fits both budgets and
-`n_concurrent`. Ties prefer larger CPU requests, then submission order.
-The per-attempt `resource-scheduler.log` records admissions, releases and totals.
-These budgets apply within one evaluator job and account for task declarations.
-Allow headroom for the host, Compose sidecars and any other simultaneous jobs.
+A local Harbor evaluator recipe can set `resource_cpu_slots`,
+`resource_memory_mb` (in MiB), or both. Task declarations remain the Docker
+hard limits. `resource_policy` supports:
+
+| Policy | Admission behavior |
+| --- | --- |
+| `greedy-largest-fitting` | Reserve the peak declared CPU and memory across agent and verifier phases. |
+| `calibrated-largest-fitting` | Keep declared resources as hard limits, but reserve a calibrated fraction for admission. |
+
+For calibrated admission, `resource_cpu_fraction` and
+`resource_memory_fraction` default to `0.5` and `0.25`.
+`resource_memory_floor_mb` and `resource_memory_cap_mb` bound the calculated
+memory reservation. An optional JSON file at `resource_profile` can override a
+task's reservation:
+
+```json
+{
+  "schema_version": 1,
+  "tasks": {
+    "payments-pipeline-fix": {"cpu": 4, "memory_mb": 6144}
+  }
+}
+```
+
+`resource_max_active` limits the number of simultaneously admitted trials.
+When `resource_min_available_memory_mb` is set, new admissions wait until the
+host reports enough `MemAvailable`. Whenever capacity is released, the queue
+admits the largest pending reservation that fits both budgets and the active
+count. Ties prefer larger CPU requests, then submission order. The
+per-attempt `resource-scheduler.log` records declared limits, reservations,
+admission sources, releases and totals.
+
+These budgets apply within one evaluator job. Keep the global budgets below
+physical capacity and leave headroom for the host, Compose sidecars and other
+simultaneous jobs. Profile overrides should come from measured high-water
+marks; the fractional fallback is a conservative prior, not a replacement for
+the task's cgroup limit.
 
 ## Proxy variables
 

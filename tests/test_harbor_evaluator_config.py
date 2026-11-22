@@ -108,12 +108,26 @@ def test_eval_env_freezes_weighted_resource_scheduler() -> None:
         agent="custom:Agent",
         resource_cpu_slots=22,
         resource_memory_mb=30720,
-        resource_policy="greedy-largest-fitting",
+        resource_policy="calibrated-largest-fitting",
+        resource_max_active=8,
+        resource_cpu_fraction=0.5,
+        resource_memory_fraction=0.25,
+        resource_memory_floor_mb=1024,
+        resource_memory_cap_mb=6144,
+        resource_min_available_memory_mb=4096,
+        resource_profile="evaluator/resource-profile.json",
     )
 
     assert "HARBOR_RESOURCE_CPU_SLOTS=22\n" in env
     assert "HARBOR_RESOURCE_MEMORY_MB=30720\n" in env
-    assert "HARBOR_RESOURCE_POLICY=greedy-largest-fitting\n" in env
+    assert "HARBOR_RESOURCE_POLICY=calibrated-largest-fitting\n" in env
+    assert "HARBOR_RESOURCE_MAX_ACTIVE=8\n" in env
+    assert "HARBOR_RESOURCE_CPU_FRACTION=0.5\n" in env
+    assert "HARBOR_RESOURCE_MEMORY_FRACTION=0.25\n" in env
+    assert "HARBOR_RESOURCE_MEMORY_FLOOR_MB=1024\n" in env
+    assert "HARBOR_RESOURCE_MEMORY_CAP_MB=6144\n" in env
+    assert "HARBOR_RESOURCE_MIN_AVAILABLE_MEMORY_MB=4096\n" in env
+    assert "HARBOR_RESOURCE_PROFILE=evaluator/resource-profile.json\n" in env
 
 
 def test_eval_env_omits_neutral_harbor_controls() -> None:

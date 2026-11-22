@@ -225,10 +225,47 @@ def _write_files(
     max_retries = int(evaluator.get("max_retries", 0))
     resource_cpu_slots = _positive_optional_int(evaluator.get("resource_cpu_slots"), "evaluator.resource_cpu_slots")
     resource_memory_mb = _positive_optional_int(evaluator.get("resource_memory_mb"), "evaluator.resource_memory_mb")
+    resource_max_active = _positive_optional_int(evaluator.get("resource_max_active"), "evaluator.resource_max_active")
+    resource_cpu_fraction = _optional_unit_float(
+        evaluator.get("resource_cpu_fraction"),
+        "evaluator.resource_cpu_fraction",
+    )
+    resource_memory_fraction = _optional_unit_float(
+        evaluator.get("resource_memory_fraction"),
+        "evaluator.resource_memory_fraction",
+    )
+    resource_memory_floor_mb = _positive_optional_int(
+        evaluator.get("resource_memory_floor_mb"),
+        "evaluator.resource_memory_floor_mb",
+    )
+    resource_memory_cap_mb = _positive_optional_int(
+        evaluator.get("resource_memory_cap_mb"),
+        "evaluator.resource_memory_cap_mb",
+    )
+    resource_min_available_memory_mb = _nonnegative_optional_int(
+        evaluator.get("resource_min_available_memory_mb"),
+        "evaluator.resource_min_available_memory_mb",
+    )
+    resource_profile = evaluator.get("resource_profile")
+    if resource_profile is not None:
+        if not isinstance(resource_profile, str) or not resource_profile.strip():
+            raise ValueError("evaluator.resource_profile must be a non-empty relative path")
+        profile_path = Path(resource_profile)
+        if profile_path.is_absolute() or ".." in profile_path.parts:
+            raise ValueError("evaluator.resource_profile must stay inside the workspace")
+        resource_profile = profile_path.as_posix()
+    if (
+        resource_memory_floor_mb is not None
+        and resource_memory_cap_mb is not None
+        and resource_memory_floor_mb > resource_memory_cap_mb
+    ):
+        raise ValueError("evaluator.resource_memory_floor_mb must not exceed resource_memory_cap_mb")
     resource_policy = evaluator.get("resource_policy")
     if resource_policy is not None:
-        if resource_policy != "greedy-largest-fitting":
-            raise ValueError("evaluator.resource_policy must be greedy-largest-fitting")
+        if resource_policy not in {"greedy-largest-fitting", "calibrated-largest-fitting"}:
+            raise ValueError(
+                "evaluator.resource_policy must be greedy-largest-fitting or calibrated-largest-fitting"
+            )
         if resource_cpu_slots is None and resource_memory_mb is None:
             raise ValueError("evaluator.resource_policy requires a CPU or memory budget")
     task_scope = str(evaluator.get("task_scope", "partitioned"))
@@ -294,6 +331,13 @@ def _write_files(
             resource_cpu_slots=resource_cpu_slots,
             resource_memory_mb=resource_memory_mb,
             resource_policy=resource_policy,
+            resource_max_active=resource_max_active,
+            resource_cpu_fraction=resource_cpu_fraction,
+            resource_memory_fraction=resource_memory_fraction,
+            resource_memory_floor_mb=resource_memory_floor_mb,
+            resource_memory_cap_mb=resource_memory_cap_mb,
+            resource_min_available_memory_mb=resource_min_available_memory_mb,
+            resource_profile=resource_profile,
         ),
         "evaluator/agent.env": _agent_env(evaluator.get("agent_env")),
         "evaluator/verifier.env": _agent_env(evaluator.get("verifier_env")),
@@ -770,6 +814,13 @@ def _eval_env(
     resource_cpu_slots: int | None = None,
     resource_memory_mb: int | None = None,
     resource_policy: str | None = None,
+    resource_max_active: int | None = None,
+    resource_cpu_fraction: float | None = None,
+    resource_memory_fraction: float | None = None,
+    resource_memory_floor_mb: int | None = None,
+    resource_memory_cap_mb: int | None = None,
+    resource_min_available_memory_mb: int | None = None,
+    resource_profile: str | None = None,
 ) -> str:
     expected_trials = tasks_per_round * max(trials, 1)
     text = (
@@ -803,6 +854,20 @@ def _eval_env(
         text += f"HARBOR_RESOURCE_MEMORY_MB={resource_memory_mb}\n"
     if resource_policy:
         text += f"HARBOR_RESOURCE_POLICY={shlex.quote(resource_policy)}\n"
+    if resource_max_active is not None:
+        text += f"HARBOR_RESOURCE_MAX_ACTIVE={resource_max_active}\n"
+    if resource_cpu_fraction is not None:
+        text += f"HARBOR_RESOURCE_CPU_FRACTION={resource_cpu_fraction}\n"
+    if resource_memory_fraction is not None:
+        text += f"HARBOR_RESOURCE_MEMORY_FRACTION={resource_memory_fraction}\n"
+    if resource_memory_floor_mb is not None:
+        text += f"HARBOR_RESOURCE_MEMORY_FLOOR_MB={resource_memory_floor_mb}\n"
+    if resource_memory_cap_mb is not None:
+        text += f"HARBOR_RESOURCE_MEMORY_CAP_MB={resource_memory_cap_mb}\n"
+    if resource_min_available_memory_mb is not None:
+        text += f"HARBOR_RESOURCE_MIN_AVAILABLE_MEMORY_MB={resource_min_available_memory_mb}\n"
+    if resource_profile:
+        text += f"HARBOR_RESOURCE_PROFILE={shlex.quote(resource_profile)}\n"
     if model:
         text += f"EVOLVE_HARBOR_MODEL={shlex.quote(model)}\n"
     return text + (f"EVOLVE_HARBOR_TASK_FILE={shlex.quote(task_file)}\n" if task_file else "")
@@ -814,6 +879,25 @@ def _positive_optional_int(value: object, field: str) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ValueError(f"{field} must be a positive integer")
     return value
+
+
+def _nonnegative_optional_int(value: object, field: str) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{field} must be a non-negative integer")
+    return value
+
+
+def _optional_unit_float(value: object, field: str) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be a number in (0, 1]")
+    result = float(value)
+    if not 0 < result <= 1:
+        raise ValueError(f"{field} must be in (0, 1]")
+    return result
 
 
 def _eval_sh(engine: str, _dataset: str) -> str:
