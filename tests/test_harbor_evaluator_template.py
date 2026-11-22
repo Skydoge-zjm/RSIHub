@@ -1161,4 +1161,5 @@ def test_harbor_shell_uses_canonical_parser_result() -> None:
     assert 'exit "$parser_rc"' in text
     assert 'harbor "$@" 2>&1 | tee' not in text
     assert '> "$live_fifo" 2>&1 || harbor_rc=$?' in text
-    assert 'sh -c \'umask 077; exec "$@"\' sh harbor "$@"' in text
+    assert 'set -- harbor "$@"' in text
+    assert 'sh -c \'umask 077; exec "$@"\' sh "$@"' in text

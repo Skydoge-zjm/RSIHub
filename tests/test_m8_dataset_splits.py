@@ -399,6 +399,7 @@ def test_harbor_rollout_uses_only_frozen_train_task_names(tmp_path: Path, monkey
             "type": "bind",
             "source": str(python_dir),
             "target": "/installed-agent/uv-python",
+            "read_only": True,
         },
         {
             "type": "bind",
