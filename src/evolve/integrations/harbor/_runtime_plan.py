@@ -42,7 +42,11 @@ def resolve_mounts(environment: Mapping[str, str], cache: Path) -> list[dict[str
         if target in targets:
             raise ValueError(f"duplicate candidate runtime mount target: {target}")
         targets.add(target)
-        resolved.append(dict(mount))
+        normalized = dict(mount)
+        # Harbor's Compose schema represents the writable default by omitting the flag.
+        if normalized.get("read_only") is False:
+            del normalized["read_only"]
+        resolved.append(normalized)
 
     resolved: list[dict[str, Any]] = []
     for mount in mounts:
@@ -51,7 +55,7 @@ def resolve_mounts(environment: Mapping[str, str], cache: Path) -> list[dict[str
     if python_dir:
         path = Path(python_dir).expanduser().resolve()
         path.mkdir(parents=True, exist_ok=True)
-        append({"type": "bind", "source": str(path), "target": "/installed-agent/uv-python"})
+        append({"type": "bind", "source": str(path), "target": "/installed-agent/uv-python", "read_only": True})
     for variable, target in (
         ("EVOLVE_CODEX_BINARY_PATH", "/usr/local/bin/codex"),
         ("EVOLVE_CODEX_RG_PATH", "/usr/local/bin/rg"),

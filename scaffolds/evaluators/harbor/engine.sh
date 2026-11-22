@@ -1,4 +1,5 @@
 # harbor evaluator template
+unset HARBOR_RESOURCE_CPU_SLOTS HARBOR_RESOURCE_MEMORY_MB HARBOR_RESOURCE_POLICY RSIHUB_RESOURCE_LOG
 . evaluator/eval.env
 if [ "${EVOLVE_EXECUTION_BACKEND:-}" = "local" ]; then
   case "${EVOLVE_HARBOR_ENVIRONMENT:-}" in
@@ -420,18 +421,17 @@ for proxy_entry in \
   "no_proxy=$proxy_bypass" "NO_PROXY=$proxy_bypass"; do
   if [ -n "${proxy_entry#*=}" ]; then set -- "$@" --ae "$proxy_entry" --ve "$proxy_entry"; fi
 done
-if [ -n "${HARBOR_RESOURCE_CPU_SLOTS:-}" ] || [ -n "${HARBOR_RESOURCE_MEMORY_MB:-}" ]; then
-  if ! run_shared_uv run --project "$EVOLVE_WORKSPACE" --frozen \
-    --python "$EVOLVE_FRAMEWORK_PYTHON" python -m evolve.integrations.harbor._resource_scheduler \
-    > "$EVOLVE_RUN_DIR/resource-scheduler.log" 2>&1; then
-    printf 'infra_failed\n' > "$EVOLVE_RUN_DIR/status"
-    exit 3
-  fi
-fi
 set -- "$@" --job-name "$EVOLVE_ATTEMPT_ID" --jobs-dir "$jobs_dir" --n-attempts "${EVOLVE_HARBOR_ATTEMPTS:-1}" -n "${EVOLVE_HARBOR_N_CONCURRENT:-$EVOLVE_HARBOR_N}" -y -q
+if [ -n "${HARBOR_RESOURCE_CPU_SLOTS:-}" ] || [ -n "${HARBOR_RESOURCE_MEMORY_MB:-}" ]; then
+  export HARBOR_RESOURCE_CPU_SLOTS HARBOR_RESOURCE_MEMORY_MB HARBOR_RESOURCE_POLICY
+  export RSIHUB_RESOURCE_LOG="$EVOLVE_RUN_DIR/resource-scheduler.log"
+  set -- python -I -m evolve.integrations.harbor._resource_scheduler "$@"
+else
+  set -- harbor "$@"
+fi
 if [ -n "${EVOLVE_CANDIDATE_SMOKE_MODE:-}" ]; then
   run_shared_uv run --project "$EVOLVE_WORKSPACE" --frozen \
-    --python "$EVOLVE_FRAMEWORK_PYTHON" sh -c 'umask 077; exec "$@"' sh harbor "$@"
+    --python "$EVOLVE_FRAMEWORK_PYTHON" sh -c 'umask 077; exec "$@"' sh "$@"
   exit $?
 fi
 if [ "${EVOLVE_LIVE_OUTPUT:-0}" = "1" ]; then
@@ -441,13 +441,13 @@ if [ "${EVOLVE_LIVE_OUTPUT:-0}" = "1" ]; then
   tee "$EVOLVE_RUN_DIR/harbor.log" < "$live_fifo" &
   tee_pid=$!
   run_shared_uv run --project "$EVOLVE_WORKSPACE" --frozen \
-    --python "$EVOLVE_FRAMEWORK_PYTHON" sh -c 'umask 077; exec "$@"' sh harbor "$@" \
+    --python "$EVOLVE_FRAMEWORK_PYTHON" sh -c 'umask 077; exec "$@"' sh "$@" \
     > "$live_fifo" 2>&1 || harbor_rc=$?
   wait "$tee_pid" || true
   rm -f "$live_fifo"
 else
   run_shared_uv run --project "$EVOLVE_WORKSPACE" --frozen \
-    --python "$EVOLVE_FRAMEWORK_PYTHON" sh -c 'umask 077; exec "$@"' sh harbor "$@" \
+    --python "$EVOLVE_FRAMEWORK_PYTHON" sh -c 'umask 077; exec "$@"' sh "$@" \
     > "$EVOLVE_RUN_DIR/harbor.log" 2>&1 || harbor_rc=$?
 fi
 "$EVOLVE_FRAMEWORK_PYTHON" evaluator/parse_score.py "$jobs_dir" "$EVOLVE_RUN_DIR" "$harbor_rc"

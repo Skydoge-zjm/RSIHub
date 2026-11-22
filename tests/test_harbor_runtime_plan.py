@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+from harbor.models.trial.config import EnvironmentConfig
 
 from evolve.integrations.harbor._runtime_plan import resolve_mounts, write_mount_plan
 
@@ -33,6 +34,15 @@ def test_conflicting_target_fails_before_launch(tmp_path: Path) -> None:
 def test_default_cache_and_python_are_shared(tmp_path: Path) -> None:
     mounts = resolve_mounts({"EVOLVE_UV_PYTHON_INSTALL_DIR": str(tmp_path / "python")}, tmp_path / "cache")
     assert [m["target"] for m in mounts] == ["/opt/evolve/uv/cache", "/installed-agent/uv-python"]
+    assert mounts[1]["read_only"] is True
+
+
+def test_harbor_accepts_resolved_cache_mounts(tmp_path: Path) -> None:
+    bind = {"type": "bind", "source": str(tmp_path), "target": "/cache", "read_only": False}
+    mounts = resolve_mounts({"EVOLVE_CANDIDATE_RUNTIME_MOUNTS_JSON": json.dumps([bind])}, tmp_path)
+    assert EnvironmentConfig.model_validate({"mounts": mounts}).mounts == [
+        {"type": "bind", "source": str(tmp_path), "target": "/cache"}
+    ]
 
 
 def test_compose_overlays_preserve_order_spaces_and_content_identity(tmp_path: Path) -> None:

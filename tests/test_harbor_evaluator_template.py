@@ -44,7 +44,7 @@ def test_harbor_evaluator_uses_locked_workspace_runtime() -> None:
     text = _eval_sh("harbor", "fixture")
 
     assert "PYTHONPATH" not in text
-    assert text.count('--python "$EVOLVE_FRAMEWORK_PYTHON"') == 6
+    assert text.count('--python "$EVOLVE_FRAMEWORK_PYTHON"') == 5
     assert 'python "$PWD/.evolve/launch_splits.py"' in text
     assert 'harbor "$@"' in text
     assert '"$PWD/.evolve/launch_splits.py"' in text
@@ -935,7 +935,7 @@ def test_harbor_smoke_is_install_only_and_exposes_raw_diagnostics(tmp_path: Path
     assert args[args.index("-n") + 1] == "8"
     mounts = json.loads(args[args.index("--mounts") + 1])
     assert mounts == [
-        *runtime_mounts,
+        *[{key: value for key, value in mount.items() if key != "read_only"} for mount in runtime_mounts],
         {
             "type": "bind",
             "source": str(codex_binary),

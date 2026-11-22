@@ -176,6 +176,16 @@ are useful for launch profiles and diagnostics, but `operators.rollout` and
 `operators.validate` may set their own concurrency and timeout multipliers.
 Keep the two GEPA stages symmetric when changing execution headroom.
 
+A local Harbor evaluator recipe can set `resource_cpu_slots`, `resource_memory_mb`
+(in MiB), or both. The optional `resource_policy` is `greedy-largest-fitting`.
+Each trial reserves its peak declared resources across agent and verifier phases.
+Fractional CPU declarations round up to whole slots. Whenever a trial finishes,
+the queue admits the largest pending memory request that fits both budgets and
+`n_concurrent`. Ties prefer larger CPU requests, then submission order.
+The per-attempt `resource-scheduler.log` records admissions, releases and totals.
+These budgets apply within one evaluator job and account for task declarations.
+Allow headroom for the host, Compose sidecars and any other simultaneous jobs.
+
 ## Proxy variables
 
 Standard proxy variables are optional and inherited from the host:

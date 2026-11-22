@@ -59,11 +59,11 @@ def test_harbor_engine_supports_optional_frozen_evaluator_runtime_without_changi
     assert "local execution runtime requires Harbor LocalEnvironment; refusing Docker fallback" in engine
 
 
-def test_harbor_engine_installs_weighted_resource_scheduler_before_run() -> None:
+def test_harbor_engine_runs_with_frozen_weighted_resource_budget() -> None:
     engine = (Path(__file__).resolve().parents[1] / "scaffolds" / "evaluators" / "harbor" / "engine.sh").read_text()
 
-    assert "evolve.integrations.harbor._resource_scheduler" in engine
-    assert "HARBOR_RESOURCE_CPU_SLOTS" in engine
+    assert 'set -- python -I -m evolve.integrations.harbor._resource_scheduler "$@"' in engine
+    assert "export HARBOR_RESOURCE_CPU_SLOTS HARBOR_RESOURCE_MEMORY_MB HARBOR_RESOURCE_POLICY" in engine
     assert "resource-scheduler.log" in engine
 
 

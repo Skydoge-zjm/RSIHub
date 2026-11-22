@@ -223,15 +223,14 @@ def _write_files(
     agent_timeout_multiplier = float(evaluator.get("agent_timeout_multiplier", 1))
     verifier_timeout_multiplier = float(evaluator.get("verifier_timeout_multiplier", 1))
     max_retries = int(evaluator.get("max_retries", 0))
-    resource_cpu_slots = _positive_optional_int(
-        evaluator.get("resource_cpu_slots"), "evaluator.resource_cpu_slots"
-    )
-    resource_memory_mb = _positive_optional_int(
-        evaluator.get("resource_memory_mb"), "evaluator.resource_memory_mb"
-    )
+    resource_cpu_slots = _positive_optional_int(evaluator.get("resource_cpu_slots"), "evaluator.resource_cpu_slots")
+    resource_memory_mb = _positive_optional_int(evaluator.get("resource_memory_mb"), "evaluator.resource_memory_mb")
     resource_policy = evaluator.get("resource_policy")
-    if resource_policy is not None and not isinstance(resource_policy, str):
-        raise ValueError("evaluator.resource_policy must be a string")
+    if resource_policy is not None:
+        if resource_policy != "greedy-largest-fitting":
+            raise ValueError("evaluator.resource_policy must be greedy-largest-fitting")
+        if resource_cpu_slots is None and resource_memory_mb is None:
+            raise ValueError("evaluator.resource_policy requires a CPU or memory budget")
     task_scope = str(evaluator.get("task_scope", "partitioned"))
     split = evaluator.get("split")
     if task_scope == "full":
