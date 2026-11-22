@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from pathlib import Path
 from typing import Any
 
-from harbor.agents.base import BaseAgent
+from harbor.agents.base import AgentCapabilities, BaseAgent
 from harbor.agents.installed.base import NonZeroAgentExitCodeError
 from harbor.models.agent.context import AgentContext
 
@@ -28,7 +28,7 @@ from ._worker_environment import dispatch_environment, encode_tree
 
 
 class IsolatedCandidateAgent(BaseAgent):
-    SUPPORTS_ATIF = True
+    capabilities = AgentCapabilities(atif=True)
 
     def __init__(
         self,

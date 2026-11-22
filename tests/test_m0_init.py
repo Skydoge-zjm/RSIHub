@@ -588,7 +588,7 @@ def test_init_scaffolds_hill_climb_workspace(tmp_path: Path) -> None:
     assert not (workspace / "operators" / "meta_agent_brief.md").exists()
     assert not (workspace / "evaluator" / "checkout_agent.py").exists()
     assert (workspace / ".python-version").read_text() == "3.12\n"
-    assert "harbor==0.18.0" in (workspace / "pyproject.toml").read_text()
+    assert "harbor==0.27.0" in (workspace / "pyproject.toml").read_text()
     assert 'packages = [".evolve/evolve", "library"]' in (workspace / "pyproject.toml").read_text()
     assert "Apache License" in (workspace / "LICENSE.rsihub").read_text()
     assert "GEPA" in (workspace / "NOTICE.rsihub").read_text()

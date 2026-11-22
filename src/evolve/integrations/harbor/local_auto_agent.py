@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, override
 
-from harbor.agents.base import BaseAgent
+from harbor.agents.base import AgentCapabilities, BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 from harbor.models.trajectories import Trajectory
@@ -120,7 +120,7 @@ def _import_agent_class(import_path: str) -> type[BaseAgent]:
 class LocalAutoAgent(BaseAgent):
     """Use the first supported CLI already installed on the local machine."""
 
-    SUPPORTS_ATIF = True
+    capabilities = AgentCapabilities(atif=True)
 
     def __init__(
         self,
